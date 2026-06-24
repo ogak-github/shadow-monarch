@@ -46,6 +46,7 @@ Request (topic)
   - **Gemini API Key** — https://aistudio.google.com/apikey
   - **X/Twitter Bearer Token** — dari developer portal X
   - **Dev.to API Key** — dari Settings → Extensions di dev.to
+  - **ImgBB API Key** (optional) — https://api.imgbb.com/
 
 ## Setup
 
@@ -61,6 +62,7 @@ Buat file `.env` di root project:
 GEMINI_API_KEY=your_gemini_api_key
 X_BEARER_TOKEN=your_x_bearer_token
 DEVTO_API_KEY=your_devto_api_key
+IMGBB_API_KEY=your_imgbb_api_key
 ```
 
 ## Menjalankan
@@ -108,6 +110,33 @@ curl -X POST http://localhost:9099/chat \
   -d '{"message": "Jelaskan goroutines dalam Go"}'
 ```
 
+## Image Hosting
+
+Gambar cover article di-host otomatis. Priority:
+1. **ImgBB** (primary) — gratis, butuh API key
+2. **Google Drive** (optional) — butuh service account
+3. **Base64** (fallback) — embed langsung di body
+
+### Setup ImgBB (Recommended)
+
+1. Daftar gratis di https://imgbb.com
+2. Dapatkan API key dari https://api.imgbb.com/
+3. Tambah di `.env`:
+```env
+IMGBB_API_KEY=your_imgbb_api_key
+```
+
+### Setup Google Drive (Optional)
+
+1. Buat Service Account di Google Cloud Console
+2. Enable Google Drive API
+3. Download JSON credentials ke project
+4. Tambah di `.env`:
+```env
+GOOGLE_DRIVE_CREDENTIALS=./credentials.json
+GOOGLE_DRIVE_FOLDER_ID=your_folder_id
+```
+
 ## Struktur Project
 
 ```
@@ -125,7 +154,9 @@ shadow_monarch/
 │   └── mcp/
 │       ├── x_server.go          # Client X/Twitter API v2
 │       ├── devto_server.go      # Client Dev.to API
-│       └── image_gen.go         # Image generation (placeholder)
+│       ├── imgbb_client.go      # ImgBB image hosting
+│       ├── drive_client.go      # Google Drive image hosting
+│       └── image_gen.go         # Image generation (Gemini)
 ├── go.mod
 ├── go.sum
 └── .env
@@ -137,6 +168,8 @@ shadow_monarch/
 - **Google Gemini 2.5 Flash** — AI backend untuk semua agents
 - **X/Twitter API v2** — posting threads via Bearer token
 - **Dev.to API** — publish artikel
+- **ImgBB** — image hosting (primary)
+- **Google Drive API** — image hosting (optional)
 - **godotenv** — load `.env` file
 
 ## License
