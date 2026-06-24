@@ -3,10 +3,10 @@ package mcp
 import (
 	"bytes"
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io"
-	"mime/multipart"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -22,6 +22,7 @@ type devtoArticleRequest struct {
 	BodyMarkdown   string   `json:"body_markdown"`
 	Published      bool     `json:"published"`
 	Tags           []string `json:"tags"`
+	MainImage      string   `json:"main_image,omitempty"`
 	OrganizationID string   `json:"organization_id,omitempty"`
 }
 
@@ -39,7 +40,7 @@ func NewDevToServer() *DevToServer {
 	}
 }
 
-func (s *DevToServer) PostArticle(ctx context.Context, title, bodyMarkdown string, tags []string) (string, error) {
+func (s *DevToServer) PostArticle(ctx context.Context, title, bodyMarkdown string, tags []string, imageURL string) (string, error) {
 	if s.apiKey == "" {
 		return "", fmt.Errorf("DEVTO_API_KEY belum dikonfigurasi di .env")
 	}
@@ -53,6 +54,7 @@ func (s *DevToServer) PostArticle(ctx context.Context, title, bodyMarkdown strin
 		BodyMarkdown: bodyMarkdown,
 		Published:    true,
 		Tags:         tags,
+		MainImage:    imageURL,
 	}
 
 	fmt.Printf("[DevTo] Posting article: %s (tags: %v)\n", title, tags)
@@ -96,62 +98,27 @@ func (s *DevToServer) PostArticle(ctx context.Context, title, bodyMarkdown strin
 	return fmt.Sprintf("Article posted! URL: %s", articleResp.URL), nil
 }
 
-func (s *DevToServer) PostTutorial(ctx context.Context, title, content string, tags []string) (string, error) {
-	return s.PostArticle(ctx, title, content, tags)
+func (s *DevToServer) PostTutorial(ctx context.Context, title, content string, tags []string, imageURL string) (string, error) {
+	return s.PostArticle(ctx, title, content, tags, imageURL)
 }
 
-func (s *DevToServer) UploadImage(ctx context.Context, imagePath string) (string, error) {
-	if s.apiKey == "" {
-		return "", fmt.Errorf("DEVTO_API_KEY belum dikonfigurasi")
-	}
-
-	file, err := os.Open(imagePath)
+func (s *DevToServer) ImageToBase64(imagePath string) (string, error) {
+	data, err := os.ReadFile(imagePath)
 	if err != nil {
-		return "", fmt.Errorf("gagal buka file: %w", err)
-	}
-	defer file.Close()
-
-	var buf bytes.Buffer
-	writer := multipart.NewWriter(&buf)
-
-	part, err := writer.CreateFormFile("image", filepath.Base(imagePath))
-	if err != nil {
-		return "", fmt.Errorf("gagal buat form: %w", err)
+		return "", fmt.Errorf("gagal baca file: %w", err)
 	}
 
-	if _, err := io.Copy(part, file); err != nil {
-		return "", fmt.Errorf("gagal copy file: %w", err)
+	ext := filepath.Ext(imagePath)
+	mimeType := "image/png"
+	switch ext {
+	case ".jpg", ".jpeg":
+		mimeType = "image/jpeg"
+	case ".gif":
+		mimeType = "image/gif"
+	case ".webp":
+		mimeType = "image/webp"
 	}
 
-	writer.Close()
-
-	req, err := http.NewRequestWithContext(ctx, "POST", "https://dev.to/api/images", &buf)
-	if err != nil {
-		return "", fmt.Errorf("gagal buat request: %w", err)
-	}
-
-	req.Header.Set("api-key", s.apiKey)
-	req.Header.Set("Content-Type", writer.FormDataContentType())
-
-	client := &http.Client{Timeout: 60 * time.Second}
-	resp, err := client.Do(req)
-	if err != nil {
-		return "", fmt.Errorf("gagal upload image: %w", err)
-	}
-	defer resp.Body.Close()
-
-	body, _ := io.ReadAll(resp.Body)
-
-	if resp.StatusCode != 200 {
-		return "", fmt.Errorf("Dev.to image upload error (%d): %s", resp.StatusCode, string(body))
-	}
-
-	var imgResp struct {
-		Link string `json:"link"`
-	}
-	if err := json.Unmarshal(body, &imgResp); err != nil {
-		return "", fmt.Errorf("gagal parse response: %w", err)
-	}
-
-	return imgResp.Link, nil
+	encoded := base64.StdEncoding.EncodeToString(data)
+	return fmt.Sprintf("data:%s;base64,%s", mimeType, encoded), nil
 }

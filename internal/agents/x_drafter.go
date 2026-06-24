@@ -81,32 +81,61 @@ PENTING - Persona:
 - Penjelasan simpel dan jelas
 - Sertakan code snippet yang relevan
 
-Struktur article:
-1. Title yang menarik (max 128 char)
-2. Opening paragraph - hook readers
-3. Isi article dengan heading yang jelas (pakai ##)
-4. Code snippets dengan syntax highlighting
-5. Kesimpulan dan CTA
+Struktur article WAJIB:
+1. Opening paragraph - hook readers dengan masalah yang relevan
+2. Penjelasan konsep dengan ## heading
+3. Code snippets dengan bahasa yang benar (go, dart, kotlin, dst)
+4. Penjelasan setelah code snippet
+5. Kesimpulan singkat
 
-Format: Markdown
+ATURAN FORMATTING:
+- Gunakan ## untuk heading utama (maksimal 3-4 heading)
+- Gunakan **bold** untuk penekanan penting
+- Code snippet harus lengkap dan bisa dijalankan
+- Paragraf pendek (maksimal 3-4 kalimat)
+- Gunakan list (bullet atau numbered) untuk multiple points
+- Jangan gunakan heading lebih dari 3 level
+- Spasi yang cukup antar section
+
+Contoh format yang benar:
+
+## Kenapa Issue Ini Penting
+
+Penjelasan singkat tentang masalah...
+
+## Solusi: Cara Fix
+
+Langkah-langkah:
+
+1. **Pertama**, lakukan ini...
+2. **Kedua**, tambahkan ini...
+
+Contoh kode (dalam block kode):
+
+func Example() {
+    // isi kode
+}
+
+Penjelasan kode di atas...
+
+## Kesimpulan
+
+Ringkasan singkat...
 
 Return format:
-TITLE: [judul article]
-TAGS: [tag1, tag2, tag3]
+TITLE: [judul article max 128 char]
 BODY:
-[isi article dalam markdown]`, research)
+[isi article dalam markdown dengan format yang rapi]`, research)
 
 	result, err := a.generateWithRetry(ctx, prompt)
 	if err != nil {
 		return "", "", err
 	}
 
-	title := extractBetween(result, "TITLE:", "TAGS:")
-	tags := extractBetween(result, "TAGS:", "BODY:")
+	title := extractBetween(result, "TITLE:", "BODY:")
 	body := extractAfter(result, "BODY:")
 
 	title = cleanString(title)
-	tags = cleanString(tags)
 	body = cleanString(body)
 
 	return title, body, nil

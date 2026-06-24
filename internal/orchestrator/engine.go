@@ -21,9 +21,24 @@ type OrchestratorEngine struct {
 	xServer   *mcp.XServer
 	imageGen  *mcp.ImageGenServer
 	devTo     *mcp.DevToServer
+	drive     *mcp.DriveClient
+	imgbb     *mcp.ImgBBClient
 }
 
 func NewOrchestratorEngine(client *genai.Client) *OrchestratorEngine {
+	credsPath := os.Getenv("GOOGLE_DRIVE_CREDENTIALS")
+	folderID := os.Getenv("GOOGLE_DRIVE_FOLDER_ID")
+
+	var driveClient *mcp.DriveClient
+	if credsPath != "" {
+		dc, err := mcp.NewDriveClient(credsPath, folderID)
+		if err != nil {
+			fmt.Printf("[Orchestrator] Warning: Gagal init Google Drive: %v\n", err)
+		} else {
+			driveClient = dc
+		}
+	}
+
 	return &OrchestratorEngine{
 		client:    client,
 		xScanner:  agents.NewXScannerAgent(client),
@@ -32,6 +47,8 @@ func NewOrchestratorEngine(client *genai.Client) *OrchestratorEngine {
 		xServer:   mcp.NewXServer(),
 		imageGen:  mcp.NewImageGenServer(client),
 		devTo:     mcp.NewDevToServer(),
+		drive:     driveClient,
+		imgbb:     mcp.NewImgBBClient(),
 	}
 }
 
@@ -191,24 +208,35 @@ func (e *OrchestratorEngine) publishToDevTo(ctx context.Context, userInput strin
 		title = extractTitleFromBody(body)
 	}
 
+	var coverImageURL string
 	if generateImage {
 		imagePath, err := e.imageGen.GenerateImage(ctx, userInput)
 		if err != nil {
 			fmt.Printf("[Orchestrator] Image generation failed: %v\n", err)
 		} else {
-			imageURL, uploadErr := e.devTo.UploadImage(ctx, imagePath)
+			var imageURL string
+			var uploadErr error
+
+			if e.imgbb != nil && e.imgbb.IsConfigured() {
+				imageURL, uploadErr = e.imgbb.UploadImage(ctx, imagePath)
+			} else if e.drive != nil {
+				imageURL, uploadErr = e.drive.UploadImage(ctx, imagePath)
+			} else {
+				imageURL, uploadErr = e.devTo.ImageToBase64(imagePath)
+			}
+
 			os.Remove(imagePath)
 			if uploadErr != nil {
 				fmt.Printf("[Orchestrator] Image upload failed: %v\n", uploadErr)
 			} else {
-				body += "\n\n![Cover Image](" + imageURL + ")"
+				coverImageURL = imageURL
 			}
 		}
 	}
 
 	tags := []string{"programming", "tutorial", "tech"}
 
-	publishResult, err := e.devTo.PostArticle(ctx, title, body, tags)
+	publishResult, err := e.devTo.PostArticle(ctx, title, body, tags, coverImageURL)
 	if err != nil {
 		fmt.Printf("[Orchestrator] Dev.to publish error: %v\n", err)
 		return "", fmt.Errorf("publish error: %w", err)
@@ -233,8 +261,8 @@ func cleanGeneratedTitle(raw string) string {
 	lines := strings.Split(raw, "\n")
 	for _, line := range lines {
 		line = strings.TrimSpace(line)
-		line = strings.TrimPrefix(line, "Judul:")
-		line = strings.TrimPrefix(line, "Judul :")
+		line = strings.TrimPrefix(line, "1.")
+		line = strings.TrimPrefix(line, "- ")
 		line = strings.TrimSpace(line)
 		if len(line) > 5 && len(line) <= 128 {
 			return line

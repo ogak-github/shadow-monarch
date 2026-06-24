@@ -72,18 +72,27 @@ Output harus membuat pembaca berkata:
 }
 
 func (a *GCPExpertAgent) GenerateTitle(ctx context.Context, topic string) (string, error) {
-	prompt := fmt.Sprintf(`Buat judul artikel tech yang ringkas, menarik, dan engaging.
+	prompt := fmt.Sprintf(`Buat SATU judul artikel tech yang ringkas, menarik, dan engaging.
 
 Topik: %s
 
+PENTING: Berikan HANYA SATU judul, jangan multiple options.
+
 Aturan judul:
-1. Maksimal 50 kata
+1. Maksimal 10-15 kata (pendek dan to the point)
 2. Gunakan angka atau listicle jika relevan
 3. Buat penasaran tapi tidak clickbait
 4. Tunjukkan value atau insight yang didapat pembaca
 5. Gunakan bahasa Indonesia yang natural dan percakapan
 6. Hindari jargon berlebihan, tetapi tetap teknis
-7. Bisa menggunakan pattern seperti: "Kenapa...", "Cara...", "X yang Perlu...", "Mengapa X Lebih Baik dari Y"`, topic)
+7. Bisa menggunakan pattern seperti: "Kenapa...", "Cara...", "X yang Perlu...", "Mengapa X Lebih Baik dari Y"
+
+Contoh judul yang bagus:
+- "Cara Optimasi PostgreSQL untuk Aplikasi Go"
+- "5 Kesalahan Umum dalam Arsitektur Microservices"
+- "Kenapa Flutter Lebih Cepat dari Native Android"
+
+Output: Hanya satu judul saja, tanpa penjelasan lain.`, topic)
 
 	return a.generateWithRetry(ctx, prompt)
 }
